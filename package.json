@@ -1,0 +1,14 @@
+{
+  "name": "mindtrace-prod",
+  "version": "2.0.0",
+  "description": "MindTrace — Agentic Cognitive Diagnostic Engine (Production)",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod",
+    "start": "vercel dev"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

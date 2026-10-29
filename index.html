@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- viewport-fit=cover enables edge-to-edge layout on notched phones -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>MindTrace — Agentic Cognitive Diagnostic Engine</title>
+  <meta name="description" content="MindTrace — Agentic AI cognitive diagnostic engine. Step-level error classification with episodic memory." />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ============================================================
+       TOPBAR — sticky, minimal, shows operational status + security
+       ============================================================ -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark"><i class="fa-solid fa-brain"></i></div>
+        <div class="brand-text">
+          <span class="brand-title">MindTrace</span>
+          <span class="brand-sub">Agentic Diagnostic Engine • Meta Global AI Hackathon 2026</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span class="env-badge"><span class="dot-live"></span> Operational</span>
+        <span class="env-badge muted"><i class="fa-solid fa-shield-halved"></i> Secured</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <!-- ============================================================
+         SIDEBAR — subject node, diagnostic domain, adaptive params
+         ============================================================ -->
+    <aside class="sidebar">
+      <div class="sidebar-card">
+        <div class="card-head">
+          <span class="card-title"><i class="fa-solid fa-user-astronaut"></i> Subject Node</span>
+          <span class="chip" id="profileIdBadge">…</span>
+        </div>
+        <div class="field">
+          <label class="field-label">Subject Token (auto)</label>
+          <div class="input-group">
+            <i class="fa-solid fa-fingerprint"></i>
+            <input type="text" id="studentIdInput" value="" readonly />
+            <span class="input-hint">anon</span>
+          </div>
+          <p class="field-help">Anonymous auth · no email · session-isolated</p>
+        </div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="card-head">
+          <span class="card-title"><i class="fa-solid fa-compass"></i> Diagnostic Domain</span>
+          <span class="chip ghost">Neural routing</span>
+        </div>
+        <div class="field">
+          <label class="field-label">Find Diagnostic Domain</label>
+          <div class="search-wrapper">
+            <div class="input-group">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="topicSearch" placeholder="Search or add custom…" autocomplete="off" />
+            </div>
+            <div class="search-dropdown" id="searchDropdown"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">Or Deploy Custom Probe</label>
+          <div class="input-group">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <input type="text" id="customQuestionInput" placeholder="e.g. 3x - 7 = 14" autocomplete="off" />
+          </div>
+          <button class="btn btn-secondary w-full" id="useCustomQuestionBtn" type="button">
+            <i class="fa-solid fa-plus"></i> Deploy Custom Probe
+          </button>
+        </div>
+        <div class="engine-line">
+          <span class="pulse"></span>
+          <span>muse-spark-open-1026 • Baseten</span>
+          <span class="engine-ok"><i class="fa-solid fa-circle-check"></i> Live</span>
+        </div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="card-head"><span class="card-title"><i class="fa-solid fa-sliders"></i> Adaptive Parameters</span></div>
+        <div class="grid-2">
+          <div class="field">
+            <label class="field-label">Difficulty</label>
+            <select id="difficultySelect" class="select">
+              <option value="auto">Auto (profile)</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label">Focus Gap</label>
+            <select id="weaknessSelect" class="select"><option value="">Any gap</option></select>
+          </div>
+        </div>
+        <p class="field-help">Auto uses mastery level · Focus targets a specific gap</p>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="trust-row"><i class="fa-solid fa-lock"></i> API via Vercel env — no key in client</div>
+        <div class="trust-row muted">© 2026 MindTrace · Production Build</div>
+      </div>
+    </aside>
+
+    <!-- ============================================================
+         MAIN — problem panel, workflow trace, diagnostic output
+         ============================================================ -->
+    <main class="main">
+      <section class="panel problem-panel" id="problemCard">
+        <div class="panel-top">
+          <div class="topic-badge"><i class="fa-solid fa-bolt"></i> Active: <span id="currentTopicLabel">Linear Equations</span></div>
+          <div class="topic-badge muted"><i class="fa-solid fa-clock-rotate-left"></i> <span id="memoryCount">0 past sessions</span></div>
+        </div>
+
+        <div class="problem-box">
+          <div class="problem-label">Source Problem</div>
+          <div class="math-display" id="problemDisplay">\[ 2x + 5 = 15 \]</div>
+          <div class="problem-meta" id="problemMeta" style="display: none;">
+            <span class="meta-chip" id="metaDifficulty"></span>
+            <span class="meta-chip" id="metaSkill"></span>
+            <span class="meta-chip" id="metaTime"></span>
+            <button class="btn btn-ghost small" id="revealScaffoldBtn" hidden type="button">
+              <i class="fa-solid fa-lightbulb"></i> Reveal Scaffold
+            </button>
+          </div>
+          <div id="scaffoldReveal" hidden class="scaffold-box"></div>
+        </div>
+
+        <div class="steps-head">
+          <div class="steps-title"><i class="fa-solid fa-list-check"></i> Workflow Trace <span class="steps-count" id="stepsCount"></span></div>
+          <div class="steps-actions">
+            <button class="btn btn-ghost" id="fullscreenBtn" type="button"><i class="fa-solid fa-expand"></i> Full Screen</button>
+            <button class="btn btn-primary" id="generateQuestionBtn" type="button">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Probe
+            </button>
+          </div>
+        </div>
+
+        <div class="math-pad" id="mathPad">
+          <div class="pad-empty" id="padEmpty">
+            <div class="empty-icon"><i class="fa-solid fa-pen-nib"></i></div>
+            <div class="empty-title">No steps committed</div>
+            <div class="empty-desc">Commit your first transformation below and press <b>Enter</b>.</div>
+          </div>
+        </div>
+
+        <div class="answer-row">
+          <div class="input-group large">
+            <i class="fa-solid fa-keyboard"></i>
+            <input type="text" id="studentAnswer" placeholder="Commit step and press Enter…" autocomplete="off" />
+          </div>
+          <button class="btn btn-primary large" id="submitBtn" type="button">
+            <span id="btnText">Run Diagnostic</span>
+            <span class="loader" id="loader"><span class="spinner"></span></span>
+          </button>
+        </div>
+        <div class="answer-foot">
+          <button class="btn btn-ghost small" id="clearBtn" type="button"><i class="fa-solid fa-eraser"></i> Clear trace</button>
+          <span class="kbd-hint">Enter = commit step · Run = diagnostic pass</span>
+        </div>
+
+        <!-- ============================================================
+             DIAGNOSTIC PANEL — replaces "Tutor Feedback"
+             Three channels: Error Classification · Conceptual Breakdown · Next Optimal Transition
+             ============================================================ -->
+        <div class="diag-panel" id="diagPanel" hidden>
+          <div class="diag-head">
+            <span><i class="fa-solid fa-chalkboard-user"></i> Cognitive Diagnostic Report</span>
+            <span class="diag-status" id="diagStatusLabel">—</span>
+          </div>
+          <div class="diag-grid">
+            <div class="diag-item">
+              <div class="diag-label classification"><i class="fa-solid fa-stethoscope"></i> Error Classification</div>
+              <p id="diagErrorClass">—</p>
+            </div>
+            <div class="diag-item">
+              <div class="diag-label analysis"><i class="fa-solid fa-lightbulb"></i> Conceptual Breakdown</div>
+              <p id="diagAnalysis">—</p>
+            </div>
+            <div class="diag-item full">
+              <div class="diag-label transition"><i class="fa-solid fa-forward-step"></i> Next Optimal Transition</div>
+              <p id="diagTransition">—</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="derivationActions" class="derivation-actions">
+          <button class="btn btn-success" id="nextTransitionBtn" type="button">
+            <i class="fa-solid fa-forward"></i> Reveal Next Transition
+          </button>
+          <button class="btn btn-secondary" id="fullDerivationBtn" type="button">
+            <i class="fa-solid fa-book-open"></i> View Complete Derivation
+          </button>
+        </div>
+        <div class="derivation-box" id="derivationBox" hidden>
+          <div class="derivation-head">
+            <i class="fa-solid fa-book-open"></i>
+            <span id="derivationTitle">Optimal Solution Path</span>
+            <span class="derivation-badge" id="derivationBadge">Model-generated</span>
+          </div>
+          <div class="derivation-list" id="derivationList"></div>
+          <button class="btn btn-ghost w-full" id="hideDerivationBtn" type="button">
+            <i class="fa-solid fa-eye-slash"></i> Hide
+          </button>
+        </div>
+
+        <div class="upload-card">
+          <input type="file" id="photoInput" accept="image/*" hidden />
+          <button id="uploadPhotoBtn" class="btn btn-ghost w-full" type="button">
+            <i class="fa-solid fa-camera"></i> Upload Handwritten Derivation
+          </button>
+          <div id="imagePreviewContainer" class="preview-wrap" style="display:none;">
+            <img id="imagePreview" alt="Preview" />
+            <button id="removePhotoBtn" class="btn btn-ghost small" type="button">Remove image</button>
+          </div>
+          <p class="field-help center">Image via secure proxy · max 600KB</p>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           LOWER GRID — Skill Dependency Graph + Cognitive Profile
+           ============================================================ -->
+      <div class="grid-2-layout">
+        <section class="panel">
+          <div class="panel-head">
+            <h3 class="panel-title">
+              <i class="fa-solid fa-diagram-project"></i> Skill Dependency Graph
+              <span id="gapLabel" class="gap-label"></span>
+            </h3>
+          </div>
+          <div class="skill-tree" id="skillTree"></div>
+        </section>
+        <section class="panel profile-panel" id="profilePanel">
+          <div class="panel-head">
+            <h3 class="panel-title"><i class="fa-solid fa-user-graduate"></i> Cognitive Profile</h3>
+            <span class="chip mono" id="profileMasteryBadge">Loading…</span>
+          </div>
+          <div class="profile-content">
+            <div class="profile-section">
+              <div class="profile-section-title">
+                <i class="fa-solid fa-circle-check" style="color:var(--success)"></i> Validated Competencies
+              </div>
+              <ul class="profile-list" id="profileStrengths"><li class="empty">Loading…</li></ul>
+            </div>
+            <div class="profile-section">
+              <div class="profile-section-title">
+                <i class="fa-solid fa-triangle-exclamation" style="color:var(--warning)"></i> Identified Gaps
+              </div>
+              <ul class="profile-list" id="profileWeaknesses"><li class="empty">Loading…</li></ul>
+            </div>
+            <div class="profile-footer" id="profileFooter">Syncs after each diagnostic pass</div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="app-footer">
+        <span>Built for Meta Global AI Hackathon 2026 · Production</span>
+        <span class="muted">No API key in client</span>
+      </footer>
+    </main>
+  </div>
+
+  <!-- ============================================================
+       FULLSCREEN OVERLAY — for focused derivation review
+       ============================================================ -->
+  <div class="fs-overlay" id="fsOverlay" hidden>
+    <div class="fs-header">
+      <span class="fs-title"><i class="fa-solid fa-list-check"></i> Workflow Trace</span>
+      <button class="fs-close" id="fsClose" type="button"><i class="fa-solid fa-xmark"></i> Close</button>
+    </div>
+    <div class="fs-question" id="fsQuestion"></div>
+    <div class="fs-body" id="fsBody"></div>
+  </div>
+
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+  <script type="module" src="js/script.js"></script>
+</body>
+</html>
