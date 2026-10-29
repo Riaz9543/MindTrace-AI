@@ -368,7 +368,7 @@ export async function getOrGenerateQuestion(topic) {
 export function buildDiagnosticPrompt(currentTopic, questionText, steps, memoryText, hasImage, jsVerdict) {
   const stepsText = steps.length ? steps.join(" | ") : (hasImage ? "(see image)" : "(no steps yet)");
   const imageInstruction = hasImage
-    ? `\nIMPORTANT: The user has provided an image of their handwritten math. First, transcribe the math steps you see in the image into the \`steps_analyzed\` array. Then, verify their logic step-by-step against your correct solution. If steps list is empty, rely solely on the image transcription.\n`
+    ? `\nIMPORTANT: The user has provided an image of their handwritten math. First, transcribe EVERY visible math expression from the image into the \`steps_analyzed\` array — each distinct equation/line as its own entry, exactly as written. If the image contains the source question/problem statement on the first line, also extract it into \`detected_question\` (e.g. "2x + 5 = 15"). Then verify their logic step-by-step against your correct solution. If steps list is empty, rely solely on the image transcription.\n`
     : "";
   return `You are an expert mathematical diagnostic agent and step-level verifier.\n${imageInstruction}
 Source Problem: ${questionText}
@@ -407,7 +407,9 @@ Respond ONLY with valid JSON matching this exact structure:
   "simple_explanation": "Explanation of the FIRST mistake",
   "next_step_hint": "Hint to fix",
   "gap_node": "Math concept",
+  "detected_question": "exact question/problem extracted from image if visible, otherwise empty string",
   "full_solution": [ { "step": "2x = 10", "explanation": "Subtract 5 from both sides" } ],
+  "steps_analyzed": ["first transcribed line", "second line"],
   "step_evaluations": [
     {
       "step_number": 1,
@@ -552,13 +554,14 @@ function normalizeDiagnosis(raw, steps, jsVerdict = "UNKNOWN") {
     simple_explanation: jsVerdict === "CORRECT" ? "You solved it correctly." : (raw?.simple_explanation || raw?.diagnosis || "Try again step by step."),
     next_step_hint: jsVerdict === "CORRECT" ? "Keep up the good work!" : (raw?.next_step_hint || "Check your last step carefully."),
     gap_node: jsVerdict === "CORRECT" ? "None" : (raw?.gap_node || raw?.gap_identified || "General understanding"),
+    detected_question: String(raw?.detected_question || raw?.detectedQuestion || "").trim(),
     full_solution: Array.isArray(raw?.full_solution)
       ? raw.full_solution
           .map((s) => ({ step: String(s?.step || ""), explanation: String(s?.explanation || s?.reason || "") }))
           .filter((s) => s.step)
       : [],
     step_evaluations,
-    steps_analyzed: raw?.steps_analyzed || effectiveSteps
+    steps_analyzed: Array.isArray(raw?.steps_analyzed) && raw.steps_analyzed.length ? raw.steps_analyzed.map((s)=> String(s)) : effectiveSteps
   };
 }
 
