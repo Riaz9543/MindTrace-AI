@@ -224,7 +224,10 @@
           </button>
           <div id="imagePreviewContainer" class="preview-wrap" style="display:none;">
             <img id="imagePreview" alt="Preview" />
-            <button id="removePhotoBtn" class="btn btn-ghost small" type="button">Remove image</button>
+            <div class="preview-actions">
+              <button id="confirmImageBtn" class="btn btn-primary small" type="button"><i class="fa-solid fa-right-to-bracket"></i> Enter</button>
+              <button id="removePhotoBtn" class="btn btn-ghost small" type="button"><i class="fa-solid fa-trash"></i> Remove</button>
+            </div>
           </div>
           <p class="field-help center">Image via secure proxy · max 600KB</p>
         </div>
