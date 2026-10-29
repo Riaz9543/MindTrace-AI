@@ -106,6 +106,7 @@ const uploadPhotoBtn = $("uploadPhotoBtn");
 const imagePreviewContainer = $("imagePreviewContainer");
 const imagePreview = $("imagePreview");
 const removePhotoBtn = $("removePhotoBtn");
+const confirmImageBtn = $("confirmImageBtn");
 
 /* ============================================================================
  * REFEREE GATE
@@ -429,42 +430,101 @@ async function selectTopic(topic) {
 /* ============================================================================
  * WORKFLOW TRACE — commit, renumber, clear
  * ========================================================================== */
-function lockStep(rawText) {
-  const text = String(rawText || "").trim();
-  if (!text) return;
-  mathPad.querySelectorAll(".math-line").forEach((el) => el.classList.remove("step-correct", "step-wrong", "step-cascading"));
-  mathPad.querySelectorAll(".step-reason").forEach((el) => el.remove());
-  mathPad.classList.remove("has-results");
-  studentSteps.push(text);
-  updateStepsCount();
-  padEmpty.style.display = "none";
-
+/* SHARED HELPER — builds one workflow trace line with IDENTICAL DOM & CSS
+   Used by both manual typing (lockStep) and image transcription.
+   Guarantees every CSS class, tag, delete button and KaTeX rendering is identical. */
+function buildMathLine(text, index, onDelete) {
   const line = document.createElement("div");
   line.className = "math-line";
   const tag = document.createElement("span");
   tag.className = "step-tag";
-  tag.innerHTML = `<i class="fa-solid fa-chevron-right" style="font-size:8px;"></i> STEP ${studentSteps.length}`;
-
-  const mathText = mathToLatex(text);
-  const wrapped = /\\\[|\\\(|\$\$|\$/.test(mathText) ? mathText : `\\[ ${mathText} \\]`;
-
+  tag.innerHTML = `<i class="fa-solid fa-chevron-right" style="font-size:8px;"></i> STEP ${index}`;
+  const mathText = mathToLatex(String(text || "").trim());
+  const wrapped = /\\\[|\\\(|\$\$|\$/.test(mathText) ? mathText : `\\[ ${mathText} \\] `;
   const span = document.createElement("span");
   span.textContent = wrapped;
   const del = document.createElement("button");
   del.innerHTML = `<i class="fa-solid fa-xmark"></i>`;
   del.title = "Remove step";
+  del.addEventListener("click", onDelete);
+  line.append(tag, span, del);
+  return { line, span };
+}
 
-  del.addEventListener("click", () => {
-    const idx = [...mathPad.querySelectorAll(".math-line")].indexOf(line);
-    if (idx > -1) studentSteps.splice(idx, 1);
+function clearTraceHighlights() {
+  if (!mathPad) return;
+  mathPad.querySelectorAll(".math-line").forEach((el) => el.classList.remove("step-correct", "step-wrong", "step-cascading"));
+  mathPad.querySelectorAll(".step-reason").forEach((el) => el.remove());
+  mathPad.classList.remove("has-results");
+}
+
+/* Renders an array of transcribed steps EXACTLY like manual input — same CSS */
+function renderStepsToPad(stepsArray) {
+  if (!mathPad || !Array.isArray(stepsArray) || !stepsArray.length) return;
+  clearTraceHighlights();
+  // reset pad if currently empty placeholder visible
+  if (mathPad.contains(padEmpty)) {
+    // keep padEmpty in DOM but hide it
+  }
+  padEmpty.style.display = "none";
+  // append each step
+  stepsArray.forEach((t) => {
+    const idx = studentSteps.length + 1;
+    studentSteps.push(String(t));
+    const onDelete = () => {
+      const lines = [...mathPad.querySelectorAll(".math-line")];
+      const lineIdx = lines.indexOf(lineRef.line);
+      if (lineIdx > -1) studentSteps.splice(lineIdx, 1);
+      if (lineRef.line.nextElementSibling?.classList.contains("step-reason")) lineRef.line.nextElementSibling.remove();
+      lineRef.line.remove();
+      renumberSteps();
+      updateStepsCount();
+      if (!studentSteps.length) padEmpty.style.display = "block";
+    };
+    const lineRef = buildMathLine(t, idx, () => {}); // placeholder, will rebind
+    // rebind with correct closure capturing lineRef.line
+    const delBtn = lineRef.line.querySelector("button");
+    delBtn.onclick = null;
+    delBtn.addEventListener("click", () => {
+      const lines = [...mathPad.querySelectorAll(".math-line")];
+      const lineIdx = lines.indexOf(lineRef.line);
+      if (lineIdx > -1) studentSteps.splice(lineIdx, 1);
+      if (lineRef.line.nextElementSibling?.classList.contains("step-reason")) lineRef.line.nextElementSibling.remove();
+      lineRef.line.remove();
+      renumberSteps();
+      updateStepsCount();
+      if (!studentSteps.length) padEmpty.style.display = "block";
+    });
+    mathPad.appendChild(lineRef.line);
+    renderMath(lineRef.span);
+  });
+  updateStepsCount();
+  mathPad.scrollTop = mathPad.scrollHeight;
+}
+
+function lockStep(rawText) {
+  const text = String(rawText || "").trim();
+  if (!text) return;
+  // Clear previous diagnostic highlights but keep trace — unified with image path
+  mathPad.querySelectorAll(".math-line").forEach((el) => el.classList.remove("step-correct", "step-wrong", "step-cascading"));
+  mathPad.querySelectorAll(".step-reason").forEach((el) => el.remove());
+  mathPad.classList.remove("has-results");
+  padEmpty.style.display = "none";
+  const idx = studentSteps.length + 1;
+  studentSteps.push(text);
+  updateStepsCount();
+  const { line, span } = buildMathLine(text, idx, () => {});
+  const delBtn = line.querySelector("button");
+  delBtn.addEventListener("click", () => {
+    const lines = [...mathPad.querySelectorAll(".math-line")];
+    const i = lines.indexOf(line);
+    if (i > -1) studentSteps.splice(i, 1);
     if (line.nextElementSibling?.classList.contains("step-reason")) line.nextElementSibling.remove();
     line.remove();
     renumberSteps();
     updateStepsCount();
     if (!studentSteps.length) padEmpty.style.display = "block";
   });
-
-  line.append(tag, span, del);
   mathPad.appendChild(line);
   renderMath(span);
   mathPad.scrollTop = mathPad.scrollHeight;
@@ -749,6 +809,7 @@ async function analyzePhoto(imageBase64) {
   if (analyzing || !isAuthReady()) return;
   analyzing = true;
   setLoading(true);
+  if (confirmImageBtn) { confirmImageBtn.disabled = true; confirmImageBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Entering…'; }
   safeSetFooter("Transcribing handwritten derivation…");
   try {
     const lastStep = studentSteps[studentSteps.length - 1] || "";
@@ -762,37 +823,51 @@ async function analyzePhoto(imageBase64) {
       jsVerdict
     });
 
+    // 1) If AI detected a question in the image, update Question Pad (Source Problem)
+    const detectedQ = String(diagnosis.detected_question || "").trim();
+    if (detectedQ) {
+      const isPlausible = detectedQ.length >= 2 && detectedQ.length <= 140;
+      if (isPlausible) {
+        paintProblem(detectedQ);
+        toast("Question extracted from image → added to Question Pad", "success");
+      }
+    }
+
+    // 2) Add solution steps to Workflow Trace PAD — EXACT same CSS as manual typing (via Enter)
     if (Array.isArray(diagnosis.steps_analyzed) && diagnosis.steps_analyzed.length) {
-      studentSteps = [...diagnosis.steps_analyzed];
+      // Reset trace and repopulate using shared helper so every CSS applies identically to typed input
+      studentSteps = [];
       if (mathPad) {
         mathPad.innerHTML = "";
         mathPad.appendChild(padEmpty);
         padEmpty.style.display = "none";
-        diagnosis.steps_analyzed.forEach((t, i) => {
-          const line = document.createElement("div");
-          line.className = "math-line";
-          const tag = document.createElement("span");
-          tag.className = "step-tag";
-          tag.innerHTML = `<i class="fa-solid fa-chevron-right" style="font-size:8px;"></i> STEP ${i + 1}`;
-          const span = document.createElement("span");
-          span.textContent = `\\[ ${mathToLatex(String(t))} \\]`;
-          const del = document.createElement("button");
-          del.innerHTML = `<i class="fa-solid fa-xmark"></i>`;
-          del.addEventListener("click", () => {
-            const idx = [...mathPad.querySelectorAll(".math-line")].indexOf(line);
-            if (idx > -1) studentSteps.splice(idx, 1);
-            if (line.nextElementSibling?.classList.contains("step-reason")) line.nextElementSibling.remove();
-            line.remove();
-            renumberSteps();
-            updateStepsCount();
-            if (!studentSteps.length) padEmpty.style.display = "block";
-          });
-          line.append(tag, span, del);
-          mathPad.appendChild(line);
-          renderMath(span);
-        });
-        updateStepsCount();
       }
+      diagnosis.steps_analyzed.forEach((raw) => {
+        const t = String(raw || "").trim();
+        if (!t) return;
+        // if first transcribed line equals detected question, skip duplicate (keep only in Question Pad)
+        if (detectedQ && studentSteps.length === 0 && t.replace(/\s+/g,"") === detectedQ.replace(/\s+/g,"")) return;
+        const idx = studentSteps.length + 1;
+        studentSteps.push(t);
+        const { line, span } = buildMathLine(t, idx, () => {});
+        const delBtn = line.querySelector("button");
+        delBtn.addEventListener("click", () => {
+          const lines = [...mathPad.querySelectorAll(".math-line")];
+          const i = lines.indexOf(line);
+          if (i > -1) studentSteps.splice(i, 1);
+          if (line.nextElementSibling?.classList.contains("step-reason")) line.nextElementSibling.remove();
+          line.remove();
+          renumberSteps();
+          updateStepsCount();
+          if (!studentSteps.length) padEmpty.style.display = "block";
+        });
+        mathPad.appendChild(line);
+        renderMath(span);
+      });
+      updateStepsCount();
+      mathPad.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } else {
+      toast("No steps transcribed — try a clearer photo", "error");
     }
 
     if (memoryBadge) memoryBadge.textContent = `${pastSessions.length} past session${pastSessions.length === 1 ? "" : "s"}`;
@@ -807,14 +882,15 @@ async function analyzePhoto(imageBase64) {
     populateWeaknessSelect();
     updateProfileCard();
     safeSetFooter(`Diagnosed · ${diagnosis.status} · ${new Date().toLocaleTimeString()}`);
-    toast(`Diagnosis: ${diagnosis.status}`, "success");
+    toast(`Diagnosis: ${diagnosis.status}`, diagnosis.status === "correct" ? "success" : "info");
   } catch (e) {
     safeSetFooter(`Diagnosis failed: ${e.message}`);
     toast(e.message, "error");
   } finally {
     analyzing = false;
-    pendingImageBase64 = null;
+    if (confirmImageBtn) { confirmImageBtn.disabled = false; confirmImageBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Enter'; }
     if (photoInput) photoInput.value = "";
+    pendingImageBase64 = null;
     if (imagePreview) imagePreview.src = "";
     if (imagePreviewContainer) imagePreviewContainer.style.display = "none";
     if (btnText) btnText.textContent = "Run Diagnostic";
@@ -898,10 +974,21 @@ photoInput?.addEventListener("change", (e) => {
     if (imagePreview) imagePreview.src = pendingImageBase64;
     if (imagePreviewContainer) imagePreviewContainer.style.display = "block";
     if (btnText) btnText.textContent = "Run Diagnostic";
-    safeSetFooter("Image captured · run diagnostic to transcribe");
-    toast("Image captured", "success");
+    if (confirmImageBtn) confirmImageBtn.style.display = "";
+    safeSetFooter("Image captured · press Enter near image to add to trace");
+    toast("Image captured — press Enter to add to trace", "success");
   };
   reader.readAsDataURL(file);
+});
+
+// Enter button NEAR IMAGE — adds image content to Question Pad + Workflow Trace with identical CSS
+confirmImageBtn?.addEventListener("click", () => {
+  if (!pendingImageBase64) {
+    toast("No image to enter — upload first", "error");
+    return;
+  }
+  // same as Run Diagnostic but triggered from image card
+  analyzePhoto(pendingImageBase64);
 });
 
 removePhotoBtn?.addEventListener("click", () => {
